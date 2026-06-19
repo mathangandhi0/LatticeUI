@@ -1,0 +1,22 @@
+# Godot-specific ignores
+.godot/
+*.import
+export_presets.cfg
+build_log.txt
+LatticeUi.apk
+*.txt
+*.bat
+*.ps1
+android/build/
+android/.gradle/
+android/local.properties
+android_plugin/build/
+android_plugin/.gradle/
+android_plugin/local.properties
+local.properties
+# System files
+.DS_Store
+Thumbs.db
+
+# Java heap dumps
+*.hprof
