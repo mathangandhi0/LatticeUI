@@ -261,6 +261,11 @@ class AppLoader(godot: Godot) : GodotPlugin(godot) {
     fun onNewIntent(intent: Intent) {
         Log.d("GodotAppLoader", "LIFECYCLE: onNewIntent called")
         handleWallpaperIntent(intent)
+        
+        if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_HOME)) {
+            Log.d("GodotAppLoader", "HOME BUTTON PRESSED (NewIntent)")
+            emitSignal("home_pressed")
+        }
     }
 
     override fun onMainPause() {
@@ -881,9 +886,16 @@ class AppLoader(godot: Godot) : GodotPlugin(godot) {
     }
 
     @UsedByGodot
+    fun open_accessibility_settings() {
+        val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        activity?.startActivity(intent)
+    }
+
+    @UsedByGodot
     fun launch_wallpaper_settings() {
         Log.d("GodotAppLoader", "Launching wallpaper settings...")
-        forceBounceOnResume = true // Expecting a return that requires a fix
+        forceBounceOnResume = true
         activity?.runOnUiThread {
              Toast.makeText(activity, "Opening Wallpaper...", Toast.LENGTH_SHORT).show()
         }

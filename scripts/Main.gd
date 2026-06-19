@@ -116,6 +116,7 @@ func _notification(what):
 
 	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
 		print("Main: Focus IN")
+		apply_system_bars()
 		
 		var now = Time.get_ticks_msec()
 		var duration = (now - focus_out_time) / 1000.0
@@ -484,10 +485,6 @@ func _on_package_changed(pkg: String = ""):
 	refresh_launcher(true, true, "Package Changed: " + pkg)
 
 func _on_home_pressed():
-	if returning_from_background:
-		print("Main: Home signal ignored (Just returned from app)")
-		return
-
 	print("Main: Home signal received - Switching to Home Page")
 	if has_node("SettingsCanvas"):
 		var canvas = get_node("SettingsCanvas")

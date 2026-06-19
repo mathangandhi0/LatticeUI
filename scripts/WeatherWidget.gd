@@ -103,7 +103,20 @@ func _ready():
 		# Load first icon immediately
 		call_deferred("_load_debug_icon", _debug_icons[0])
 	
+	Settings.config_changed.connect(_on_settings_changed)
+	
 	print("WeatherWidget: _ready() COMPLETED")
+
+func _on_settings_changed(key, _val):
+	if key == "weather_city_data" or key == "weather_unit" or key == "all":
+		fetch_weather()
+
+func _notification(what):
+	if what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		var now = Time.get_unix_time_from_system()
+		if last_update_time > 0 and (now - last_update_time) > REFRESH_INTERVAL:
+			print("WeatherWidget: Focus In - Weather stale, fetching new data")
+			fetch_weather()
 
 
 func _gui_input(event):

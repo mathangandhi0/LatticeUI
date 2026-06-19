@@ -7,7 +7,7 @@ export ANDROID_HOME="/home/g-mathan/Android/Sdk"
 export PATH="$JAVA_HOME/bin:/home/g-mathan/.local/bin:$ANDROID_HOME/platform-tools:$PATH"
 LOG_FILE="build_log.txt"
 
-ADB_PATH="adb"
+ADB_PATH="adb -s 192.168.1.8:36265"
 
 # Helper to log and display headers
 function write_header() {
@@ -178,29 +178,23 @@ if [[ "$*" == *"--build-only"* ]]; then
 fi
 
 write_header "[4/7] Preparing Device Environment..."
-APP_ID="com.lattice.launcher"
-MAIN_ACTIVITY="com.godot.game.GodotApp"
+APP_ID="com.example.latticeui"
+MAIN_ACTIVITY="com.godot.game.LatticeUIHomeActivity"
 APK_PATH="android/build/build/outputs/apk/standard/release/android_release.apk"
 
-# 4. Install (with signature mismatch handling)
-write_header "[5/7] Deploying APK to Device..."
-INSTALL_OUTPUT=$("$ADB_PATH" install -r "$APK_PATH" 2>&1)
-echo "$INSTALL_OUTPUT" | tee -a "$LOG_FILE"
+# 4. Uninstall existing app to guarantee fresh install
+write_header "[5/7] Deploying APK to Device (Clean Install)..."
+echo "Uninstalling existing app to guarantee a clean install..."
+$ADB_PATH uninstall "$APP_ID" 2>/dev/null
+$ADB_PATH install -r "$APK_PATH" || exit 1
 
-if echo "$INSTALL_OUTPUT" | grep -q "INSTALL_FAILED_UPDATE_INCOMPATIBLE"; then
-    echo -e "\033[1;33mSignature mismatch detected. Uninstalling old app and re-installing...\033[0m"
-    "$ADB_PATH" uninstall "$APP_ID" 2>&1 | tee -a "$LOG_FILE"
-    "$ADB_PATH" install "$APK_PATH" 2>&1 | tee -a "$LOG_FILE"
-fi
-
-# 6. Launch
 write_header "[6/7] Launching PureLauncher..."
-"$ADB_PATH" shell am start -n "$APP_ID/$MAIN_ACTIVITY" 2>&1 | tee -a "$LOG_FILE"
+# Send launch intent
+$ADB_PATH shell am start -n "$APP_ID/$MAIN_ACTIVITY" || exit 1
 
-# 7. Logcat
 write_header "[7/7] Capturing Startup logs (1500 lines)..."
-sleep 3
-"$ADB_PATH" logcat -d -t 1500 *:E godot:V GodotAppLoader:V AppLoader:V Main:V Icon:V 2>&1 | tee -a "$LOG_FILE"
+# Stream logs directly to the user's terminal
+$ADB_PATH logcat -d -t 1500 > build_log.txt
 
 write_header "======================================================"
 echo -e "\033[1;32m  SUCCESS: Build Deployed and Launched!\033[0m"

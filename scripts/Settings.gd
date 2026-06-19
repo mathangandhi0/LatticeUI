@@ -48,7 +48,10 @@ var current_config = DEFAULT_CONFIG.duplicate(true)
 
 func reset_to_defaults():
 	current_config = DEFAULT_CONFIG.duplicate(true)
+	clear_texture_cache()
 	save_config()
+	if Engine.has_singleton("AppLoader"):
+		Engine.get_singleton("AppLoader").set_active_icon_pack("")
 	emit_signal("config_changed", "all", null)
 
 

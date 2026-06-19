@@ -224,6 +224,23 @@ func setup_ui():
 	
 	sys_item.add_child(sys_btn)
 	
+	var access_btn = Button.new()
+	access_btn.text = "Enable Wallpaper Blur Permissions"
+	access_btn.custom_minimum_size = Vector2(0, 110)
+	access_btn.add_theme_font_size_override("font_size", 45) 
+	access_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	
+	access_btn.add_theme_stylebox_override("normal", glass_style)
+	access_btn.add_theme_stylebox_override("pressed", glass_style)
+	access_btn.add_theme_stylebox_override("hover", glass_style)
+	
+	access_btn.pressed.connect(func():
+		if Engine.has_singleton("AppLoader"):
+			Engine.get_singleton("AppLoader").open_accessibility_settings()
+	)
+	
+	sys_item.add_child(access_btn)
+	
 	# Item: Icon Packs (REFACTORED: Dropdown for better reliability)
 	var pack_item = create_settings_item(visuals_box, "Icon Pack", "Choose an installed theme")
 	
