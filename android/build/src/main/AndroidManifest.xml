@@ -36,7 +36,7 @@
             android:name="com.godot.game.LatticeUIHomeActivity"
             android:label="@string/godot_project_name_string"
             android:theme="@android:style/Theme.DeviceDefault.Wallpaper.NoTitleBar"
-            android:launchMode="singleTask"
+            android:launchMode="singleInstance"
             android:excludeFromRecents="false"
             android:exported="true"
             android:screenOrientation="portrait"

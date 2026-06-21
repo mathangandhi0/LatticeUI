@@ -7,7 +7,7 @@ export ANDROID_HOME="/home/g-mathan/Android/Sdk"
 export PATH="$JAVA_HOME/bin:/home/g-mathan/.local/bin:$ANDROID_HOME/platform-tools:$PATH"
 LOG_FILE="build_log.txt"
 
-ADB_PATH="adb -s 192.168.1.3:36205"
+ADB_PATH="adb -s 192.168.1.3:35331"
 
 # Helper to log and display headers
 function write_header() {
