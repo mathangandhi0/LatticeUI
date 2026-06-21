@@ -10,4 +10,16 @@ public class LatticeUIHomeActivity extends GodotApp {
             sendBroadcast(broadcast);
         }
     }
+
+    @Override
+    public void setPictureInPictureParams(android.app.PictureInPictureParams params) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            try {
+                super.setPictureInPictureParams(params);
+            } catch (IllegalStateException e) {
+                android.util.Log.w("LatticeUIHomeActivity", "Failed to set PictureInPictureParams: " + e.getMessage());
+            }
+        }
+    }
 }
+
