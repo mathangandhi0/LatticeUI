@@ -52,6 +52,10 @@ func _ready():
 	size = total_size
 	mouse_filter = Control.MOUSE_FILTER_STOP 
 	
+	# Godot 4.7 Visual Optimization
+	offset_transform_enabled = true
+	offset_transform_pivot = total_size * 0.5
+	
 	# === DECOUPLE ANIMATION FROM POSITION ===
 	# ZoneManager controls the 'position' of this root node every frame.
 	# To allow entry animations without fighting the layout, we move all visual
@@ -255,6 +259,10 @@ func _gui_input(event):
 			press_timer = 0.0
 			is_dragging_item = false
 			has_triggered_menu = false
+			
+			var press_tween = create_tween()
+			press_tween.tween_property(self, "offset_transform_scale", Vector2(0.95, 0.95), 0.1).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+			
 			accept_event()
 		elif not event.pressed:
 			if event.index != active_touch_index: return
@@ -266,7 +274,8 @@ func _gui_input(event):
 			active_touch_index = -1
 			is_pressed = false
 			is_dragging_item = false
-			scale = Vector2.ONE
+			var release_tween = create_tween()
+			release_tween.tween_property(self, "offset_transform_scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 			modulate.a = 1.0
 			
 			if was_dragging:
@@ -334,7 +343,7 @@ func _process(delta):
 			drag_offset = get_global_mouse_position() - global_position
 			# Visual Lift
 			var tween = create_tween()
-			tween.tween_property(self, "scale", Vector2(1.15, 1.15), 0.1)
+			tween.tween_property(self, "offset_transform_scale", Vector2(1.15, 1.15), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 			modulate.a = 0.7
 			z_index = 100 # Draw on top
 			

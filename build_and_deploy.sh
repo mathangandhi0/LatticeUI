@@ -7,7 +7,7 @@ export ANDROID_HOME="/home/g-mathan/Android/Sdk"
 export PATH="$JAVA_HOME/bin:/home/g-mathan/.local/bin:$ANDROID_HOME/platform-tools:$PATH"
 LOG_FILE="build_log.txt"
 
-ADB_PATH="adb -s 192.168.1.8:36265"
+ADB_PATH="adb -s 192.168.1.3:36205"
 
 # Helper to log and display headers
 function write_header() {
@@ -150,6 +150,11 @@ if [ "$DEPLOY_ONLY" = false ]; then
             -Prelease_keystore_file="$KEYSTORE_PATH" \
             -Prelease_keystore_password="$KEYSTORE_PASS" \
             -Prelease_keystore_alias="$KEY_ALIAS" \
+            -Pexport_package_name="com.example.latticeui" \
+            -Pexport_version_code="1" \
+            -Pexport_version_name="1.0" \
+            -Pexport_version_min_sdk="24" \
+            -Pexport_version_target_sdk="36" \
             -x lintVitalAnalyzeMonoRelease -x lintVitalAnalyzeStandardRelease \
             2>&1 | tee -a "../../$LOG_FILE"
     else
@@ -157,6 +162,11 @@ if [ "$DEPLOY_ONLY" = false ]; then
             -Prelease_keystore_file="$KEYSTORE_PATH" \
             -Prelease_keystore_password="$KEYSTORE_PASS" \
             -Prelease_keystore_alias="$KEY_ALIAS" \
+            -Pexport_package_name="com.example.latticeui" \
+            -Pexport_version_code="1" \
+            -Pexport_version_name="1.0" \
+            -Pexport_version_min_sdk="24" \
+            -Pexport_version_target_sdk="36" \
             -x lintVitalAnalyzeMonoRelease -x lintVitalAnalyzeStandardRelease \
             2>&1 | tee -a "../../$LOG_FILE"
     fi
