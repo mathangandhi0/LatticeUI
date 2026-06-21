@@ -40,6 +40,7 @@
             android:excludeFromRecents="false"
             android:exported="true"
             android:screenOrientation="portrait"
+            android:supportsPictureInPicture="true"
             android:windowSoftInputMode="adjustResize"
             android:configChanges="layoutDirection|locale|orientation|keyboardHidden|screenSize|smallestScreenSize|density|keyboard|navigation|screenLayout|uiMode"
             android:resizeableActivity="false"
@@ -51,6 +52,14 @@
                 <category android:name="android.intent.category.HOME" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name="com.godot.game.GodotApp"
+            tools:node="remove" />
+
+        <activity-alias
+            android:name="com.godot.game.GodotAppLauncher"
+            tools:node="remove" />
 
         <meta-data android:name="org.godotengine.plugin.v1.GodotAppLoader" android:value="com.example.godotlauncher.AppLoader" />
     </application>

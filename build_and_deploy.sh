@@ -129,9 +129,9 @@ if [ "$DEPLOY_ONLY" = false ]; then
         cp -f scripts/*.gd android/build/assets/scripts/ 2>&1 | tee -a "$LOG_FILE"
     fi
 
-    if ls assets/*.import 1> /dev/null 2>&1; then
-        cp -f assets/*.import android/build/src/main/assets/assets/ 2>&1 | tee -a "$LOG_FILE"
-        cp -f assets/*.import android/build/assets/assets/ 2>&1 | tee -a "$LOG_FILE"
+    if [ -d assets ]; then
+        cp -rf assets android/build/src/main/assets/ 2>&1 | tee -a "$LOG_FILE"
+        cp -rf assets android/build/ 2>&1 | tee -a "$LOG_FILE"
     fi
 
     # 3. Build
