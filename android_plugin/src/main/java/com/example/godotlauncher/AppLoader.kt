@@ -2313,12 +2313,28 @@ class AppLoader(godot: Godot) : GodotPlugin(godot) {
         Log.e("GodotAppLoader", "V4.77b: performScreenCapture — passing consent to service")
         
         try {
+            // Hide window content before screen capture starts so launcher UI is invisible to the screenshot
+            act.runOnUiThread {
+                val params = act.window.attributes
+                params.alpha = 0f
+                act.window.attributes = params
+            }
+
             // Set up callback for when capture completes
-            ScreenCaptureService.onCaptureComplete = {
-                Log.e("GodotAppLoader", "V4.77b: Capture complete callback — emitting signal")
+            ScreenCaptureService.onCaptureComplete = { success ->
+                Log.e("GodotAppLoader", "V4.77b: Capture complete callback — restoring window alpha")
                 act.runOnUiThread {
-                    make_toast("Wallpaper synced successfully!")
-                    emitSignal("on_wallpaper_changed")
+                    // Restore window visibility
+                    val params = act.window.attributes
+                    params.alpha = 1f
+                    act.window.attributes = params
+                    
+                    if (success) {
+                        make_toast("Wallpaper synced successfully!")
+                        emitSignal("on_wallpaper_changed")
+                    } else {
+                        make_toast("Wallpaper sync failed.")
+                    }
                 }
             }
             
@@ -2337,6 +2353,11 @@ class AppLoader(godot: Godot) : GodotPlugin(godot) {
         } catch (e: Exception) {
             Log.e("GodotAppLoader", "V4.77b: FAILED to start capture service: ${e.javaClass.name}: ${e.message}")
             e.printStackTrace()
+            act.runOnUiThread {
+                val params = act.window.attributes
+                params.alpha = 1f
+                act.window.attributes = params
+            }
             make_toast("Capture failed: ${e.message}")
         }
     }
@@ -2466,8 +2487,12 @@ class AppLoader(godot: Godot) : GodotPlugin(godot) {
                             }
                         }, 1000)
                     } else if (isAppInForeground) {
-                        Log.i("GodotAppLoader", "V4.77: API 33+ detected & foreground — triggering MediaProjection capture")
-                        capture_wallpaper()
+                        Log.i("GodotAppLoader", "V4.77: API 33+ detected & foreground — triggering MediaProjection capture after 1.5s delay")
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            if (isAppInForeground) {
+                                capture_wallpaper()
+                            }
+                        }, 1500)
                     } else {
                         Log.w("GodotAppLoader", "V4.78: App in background, ignoring background capture request")
                     }

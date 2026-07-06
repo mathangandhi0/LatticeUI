@@ -44,7 +44,7 @@ class ScreenCaptureService : Service() {
         const val MANAGED_WP_FILENAME = "managed_wallpaper.jpg"
         
         // Callback to notify AppLoader when capture is complete
-        var onCaptureComplete: (() -> Unit)? = null
+        var onCaptureComplete: ((Boolean) -> Unit)? = null
     }
 
     private var mediaProjection: MediaProjection? = null
@@ -71,6 +71,7 @@ class ScreenCaptureService : Service() {
         
         if (resultCode == -1 || resultData == null) {
             Log.e("ScreenCaptureService", "V4.77b: Missing result data — stopping")
+            onCaptureComplete?.invoke(false)
             stopSelf()
             return START_NOT_STICKY
         }
@@ -84,17 +85,19 @@ class ScreenCaptureService : Service() {
             
             if (mediaProjection == null) {
                 Log.e("ScreenCaptureService", "V4.77b: MediaProjection is NULL!")
+                onCaptureComplete?.invoke(false)
                 stopSelf()
                 return START_NOT_STICKY
             }
-            
-            Log.e("ScreenCaptureService", "V4.77b: MediaProjection created successfully — starting capture")
-            performCapture()
-        } catch (e: Exception) {
-            Log.e("ScreenCaptureService", "V4.77b: EXCEPTION creating MediaProjection: ${e.javaClass.name}: ${e.message}")
-            e.printStackTrace()
-            stopSelf()
-        }
+        
+        Log.e("ScreenCaptureService", "V4.77b: MediaProjection created successfully — starting capture")
+        performCapture()
+    } catch (e: Exception) {
+        Log.e("ScreenCaptureService", "V4.77b: EXCEPTION creating MediaProjection: ${e.javaClass.name}: ${e.message}")
+        e.printStackTrace()
+        onCaptureComplete?.invoke(false)
+        stopSelf()
+    }
         
         return START_NOT_STICKY
     }
@@ -128,6 +131,7 @@ class ScreenCaptureService : Service() {
 
             // Wait for a frame to be rendered, then capture
             Handler(Looper.getMainLooper()).postDelayed({
+                var success = false
                 try {
                     val image = imageReader?.acquireLatestImage()
                     if (image != null) {
@@ -159,9 +163,7 @@ class ScreenCaptureService : Service() {
                         croppedBitmap.recycle()
 
                         Log.e("ScreenCaptureService", "V4.77b: *** WALLPAPER CAPTURED AND SAVED! *** -> ${outFile.absolutePath}")
-                        
-                        // Notify AppLoader
-                        onCaptureComplete?.invoke()
+                        success = true
                     } else {
                         Log.e("ScreenCaptureService", "V4.77b: acquireLatestImage returned NULL — no frame captured")
                     }
@@ -169,12 +171,14 @@ class ScreenCaptureService : Service() {
                     Log.e("ScreenCaptureService", "V4.77b: Frame processing error: ${e.javaClass.name}: ${e.message}")
                     e.printStackTrace()
                 } finally {
+                    onCaptureComplete?.invoke(success)
                     cleanup()
                 }
             }, 800)
         } catch (e: Exception) {
             Log.e("ScreenCaptureService", "V4.77b: Capture setup error: ${e.javaClass.name}: ${e.message}")
             e.printStackTrace()
+            onCaptureComplete?.invoke(false)
             cleanup()
         }
     }
