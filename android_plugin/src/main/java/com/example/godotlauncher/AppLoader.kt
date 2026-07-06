@@ -152,10 +152,13 @@ class AppLoader(godot: Godot) : GodotPlugin(godot) {
                 Log.d("GodotAppLoader", "Home signal -> Emitting Signal")
                 emitSignal("home_pressed")
             } else if (action == Intent.ACTION_WALLPAPER_CHANGED) {
-                Log.e("GodotAppLoader", "CRITICAL: ACTION_WALLPAPER_CHANGED Caught!")
-                // V4.78: Removed toast to prevent screen pollution during capture
-                importSystemWallpaper()
-                emitSignal("on_wallpaper_changed")
+                Log.e("GodotAppLoader", "CRITICAL: ACTION_WALLPAPER_CHANGED Caught! Foreground: $isAppInForeground")
+                if (isAppInForeground) {
+                    importSystemWallpaper()
+                    emitSignal("on_wallpaper_changed")
+                } else {
+                    Log.d("GodotAppLoader", "App is in background, ignoring broadcast (resume handler will handle it)")
+                }
             } else {
                 val pkgName = intent?.data?.schemeSpecificPart
                 if (pkgName == context?.packageName) {
@@ -2442,8 +2445,32 @@ class AppLoader(godot: Godot) : GodotPlugin(godot) {
                 Log.e("GodotAppLoader", "System Wallpaper Import FAILED: No bitmap found")
                 // V4.77: On Android 13+, direct access is blocked. Auto-trigger screen capture.
                 if (Build.VERSION.SDK_INT >= 33) {
-                    Log.i("GodotAppLoader", "V4.77: API 33+ detected — triggering MediaProjection capture")
-                    capture_wallpaper()
+                    if (LauncherAccessibilityService.instance != null) {
+                        Log.i("GodotAppLoader", "V4.78: Accessibility service connected — triggering accessibility capture")
+                        val activity = act
+                        activity.runOnUiThread {
+                            val params = activity.window.attributes
+                            params.alpha = 0f
+                            activity.window.attributes = params
+                        }
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            LauncherAccessibilityService.captureScreen { success ->
+                                activity.runOnUiThread {
+                                    val params = activity.window.attributes
+                                    params.alpha = 1f
+                                    activity.window.attributes = params
+                                }
+                                if (success) {
+                                    emitSignal("on_wallpaper_changed")
+                                }
+                            }
+                        }, 1000)
+                    } else if (isAppInForeground) {
+                        Log.i("GodotAppLoader", "V4.77: API 33+ detected & foreground — triggering MediaProjection capture")
+                        capture_wallpaper()
+                    } else {
+                        Log.w("GodotAppLoader", "V4.78: App in background, ignoring background capture request")
+                    }
                 }
             }
         } catch (e: Exception) {
