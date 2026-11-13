@@ -2,9 +2,25 @@
 # PureLauncher Pro Build and Deploy Script V1.4 (Bash Edition)
 # This version ensures Gradle and ADB logs are streamed correctly to the screen and file.
 
-export JAVA_HOME="/home/g-mathan/java"
-export ANDROID_HOME="/home/g-mathan/Android/Sdk"
-export PATH="$JAVA_HOME/bin:/home/g-mathan/.local/bin:$ANDROID_HOME/platform-tools:$PATH"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [ -z "$JAVA_HOME" ]; then
+    if [ -d "/home/g-mathan/java" ]; then
+        export JAVA_HOME="/home/g-mathan/java"
+    elif [ -d "/usr/lib/jvm/java-17-openjdk" ]; then
+        export JAVA_HOME="/usr/lib/jvm/java-17-openjdk"
+    fi
+fi
+
+if [ -z "$ANDROID_HOME" ]; then
+    if [ -d "$HOME/Android/Sdk" ]; then
+        export ANDROID_HOME="$HOME/Android/Sdk"
+    elif [ -d "/home/g-mathan/Android/Sdk" ]; then
+        export ANDROID_HOME="/home/g-mathan/Android/Sdk"
+    fi
+fi
+
+export PATH="${JAVA_HOME:+$JAVA_HOME/bin:}${ANDROID_HOME:+$ANDROID_HOME/platform-tools:}$PATH"
 LOG_FILE="build_log.txt"
 
 ADB_PATH="adb -s 192.168.1.3:35331"
@@ -141,7 +157,7 @@ if [ "$DEPLOY_ONLY" = false ]; then
     # Run Gradle and ensure output is streamed
     chmod +x ./gradlew
 
-    KEYSTORE_PATH="/home/g-mathan/latticeui-main/lattice_release.jks"
+    KEYSTORE_PATH="$SCRIPT_DIR/lattice_release.jks"
     KEYSTORE_PASS="Lattice@2025#Secure"
     KEY_ALIAS="lattice_key"
 

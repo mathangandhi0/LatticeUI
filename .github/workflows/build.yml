@@ -1,0 +1,84 @@
+name: Build & Release Android APK
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build LatticeUI APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android Build Tools
+        run: |
+          sdkmanager --install "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Build Kotlin Plugin (AppLoader)
+        run: |
+          cd android_plugin
+          chmod +x ./gradlew
+          ./gradlew clean assembleRelease
+          cd ..
+
+      - name: Download and Install Godot 4.7 Export Templates
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates/4.7.stable
+
+          # Download export templates
+          echo "Downloading Godot 4.7 Export Templates..."
+          curl -sL "https://github.com/godotengine/godot/releases/download/4.7-stable/Godot_v4.7-stable_export_templates.tpz" -o templates.tpz
+          unzip -q templates.tpz
+          cp -r templates/* ~/.local/share/godot/export_templates/4.7.stable/
+          rm -rf templates templates.tpz
+
+      - name: Prepare Android Build Directory
+        run: |
+          # Extract Android source template
+          unzip -q -o ~/.local/share/godot/export_templates/4.7.stable/android_source.zip -d android/build/
+
+          # Place compiled AppLoader plugin into release libs
+          mkdir -p android/build/libs/release
+          cp -f android_plugin/build/outputs/aar/android_plugin-release.aar android/build/libs/release/AppLoader.aar
+
+          # Re-apply git-tracked launcher overrides
+          git checkout -- android/build/src/main/AndroidManifest.xml android/build/src/main/java/com/godot/game/LatticeUIHomeActivity.java
+
+      - name: Compile Signed APK
+        run: |
+          chmod +x ./build_and_deploy.sh
+          ./build_and_deploy.sh --build-only
+
+      - name: Prepare Artifact
+        run: |
+          mkdir -p output
+          APK_FILE="android/build/build/outputs/apk/standard/release/android_release.apk"
+          if [ -f "$APK_FILE" ]; then
+            cp "$APK_FILE" output/LatticeUI.apk
+            echo "APK ready at output/LatticeUI.apk"
+          else
+            echo "ERROR: APK not found at $APK_FILE"
+            exit 1
+          fi
+
+      - name: Upload APK to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: LatticeUI-APK
+          path: output/LatticeUI.apk
+          retention-days: 14
