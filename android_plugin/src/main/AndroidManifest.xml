@@ -9,20 +9,23 @@
     <!-- V4.77: MediaProjection Wallpaper Capture -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
 
     <application>
-        <service
-            android:name="com.example.godotlauncher.LauncherAccessibilityService"
+        <!-- Device Admin for non-accessibility double-tap screen lock -->
+        <receiver
+            android:name="com.example.godotlauncher.LatticeDeviceAdminReceiver"
             android:label="@string/godot_project_name_string"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:description="@string/godot_project_name_string"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
             android:exported="true">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
             <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service_config" />
-        </service>
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin_policies" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
 
         <!-- V4.77: MediaProjection Foreground Service -->
         <service

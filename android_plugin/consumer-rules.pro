@@ -3,4 +3,4 @@
 -keepclassmembers class com.example.godotlauncher.AppLoader {
     public <methods>;
 }
--keep class com.example.godotlauncher.LauncherAccessibilityService { *; }
+-keep class com.example.godotlauncher.LatticeDeviceAdminReceiver { *; }

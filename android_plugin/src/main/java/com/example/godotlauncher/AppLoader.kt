@@ -48,7 +48,8 @@ import org.godotengine.godot.plugin.SignalInfo
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
 
-import android.accessibilityservice.AccessibilityService
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
 import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
 import java.util.Collections
@@ -205,54 +206,9 @@ class AppLoader(godot: Godot) : GodotPlugin(godot) {
             val currentWpId = try { wallpaperManager.getWallpaperId(WallpaperManager.FLAG_SYSTEM) } catch(e: Exception) { -1 }
             
             if (lastKnownWpId != -1 && currentWpId != lastKnownWpId) {
-                Log.e("GodotAppLoader", "V4.78: Wallpaper ID changed on resume ($lastKnownWpId -> $currentWpId)")
-                
-                if (Build.VERSION.SDK_INT >= 30 && LauncherAccessibilityService.instance != null) {
-                    // V4.78: Use AccessibilityService screenshot — no consent dialog needed
-                    Log.e("GodotAppLoader", "V4.78: Accessibility service available — taking screenshot")
-                    val act = activity!!
-
-                    // Step 1: Hide the ENTIRE window content (total invisibility to screenshot)
-                    act.runOnUiThread {
-                        val params = act.window.attributes
-                        params.alpha = 0f
-                        act.window.attributes = params
-                    }
-
-                    // Step 2: Wait for UI to hide and animations (like wallpaper picker close) to finish
-                    // 1.5s is safe for most system transitions
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        Log.e("GodotAppLoader", "V4.78: Taking screenshot NOW")
-                        LauncherAccessibilityService.captureScreen { success ->
-                            // Step 3: Restore window visibility
-                            act.runOnUiThread {
-                                val params = act.window.attributes
-                                params.alpha = 1f
-                                act.window.attributes = params
-                            }
-
-                            if (success) {
-                                Log.e("GodotAppLoader", "V4.78: *** Wallpaper capture SUCCESS — emitting signal ***")
-                                make_toast("Wallpaper synced!")
-                                emitSignal("on_wallpaper_changed")
-                            } else {
-                                Log.e("GodotAppLoader", "V4.78: Capture failed — falling back to import")
-                                importSystemWallpaper()
-                                emitSignal("on_wallpaper_changed")
-                            }
-                        }
-                    }, 1500)
-                } else if (Build.VERSION.SDK_INT >= 30) {
-                    // Accessibility not enabled — prompt user
-                    Log.e("GodotAppLoader", "V4.78: Accessibility service NOT connected — prompting user")
-                    make_toast("Enable Lattice Accessibility in Settings for wallpaper blur sync")
-                    importSystemWallpaper()
-                    emitSignal("on_wallpaper_changed")
-                } else {
-                    // Older Android: Direct import works
-                    importSystemWallpaper()
-                    emitSignal("on_wallpaper_changed")
-                }
+                Log.i("GodotAppLoader", "Wallpaper ID changed on resume ($lastKnownWpId -> $currentWpId)")
+                importSystemWallpaper()
+                emitSignal("on_wallpaper_changed")
             }
             lastKnownWpId = currentWpId
             Log.d("GodotAppLoader", "V4.78: Current wallpaper ID: $currentWpId")
@@ -890,9 +846,7 @@ class AppLoader(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun open_accessibility_settings() {
-        val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        activity?.startActivity(intent)
+        Log.d("GodotAppLoader", "open_accessibility_settings deprecated and disabled")
     }
 
     @UsedByGodot
@@ -2193,32 +2147,41 @@ class AppLoader(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun is_service_connected(): Int {
-        if (LauncherAccessibilityService.instance != null) return 1
-        return 0
+        val act = activity ?: return 0
+        val dpm = act.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager ?: return 0
+        val compName = ComponentName(act, LatticeDeviceAdminReceiver::class.java)
+        return if (dpm.isAdminActive(compName)) 1 else 0
     }
 
     @UsedByGodot
     fun lock_screen() {
-        val service = LauncherAccessibilityService.instance
-        if (service == null) {
-            Log.d("GodotAppLoader", "lock_screen: Service instance is NULL in AppLoader.")
-            make_toast("Service not connected. Please re-enable 'Lattice Ui' in Accessibility Settings.")
-            
-            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            activity?.startActivity(intent)
+        val act = activity ?: return
+        val dpm = act.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
+        if (dpm == null) {
+            Log.e("GodotAppLoader", "lock_screen: DevicePolicyManager is NULL.")
+            return
+        }
+        val compName = ComponentName(act, LatticeDeviceAdminReceiver::class.java)
+        if (dpm.isAdminActive(compName)) {
+            try {
+                dpm.lockNow()
+                Log.d("GodotAppLoader", "lock_screen: Device locked successfully via DevicePolicyManager.")
+            } catch (e: Exception) {
+                Log.e("GodotAppLoader", "lock_screen: Error locking via DevicePolicyManager", e)
+                make_toast("Error locking screen")
+            }
         } else {
-            if (Build.VERSION.SDK_INT >= 28) {
-                val success = service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN)
-                if (success) {
-                    // Success silently
-                    Log.d("GodotAppLoader", "lock_screen: Lock command sent successfully.")
-                } else {
-                    make_toast("Request Failed: System returned false")
-                    Log.e("GodotAppLoader", "lock_screen: performGlobalAction returned false.")
+            Log.d("GodotAppLoader", "lock_screen: Device admin not active, prompting user.")
+            make_toast("Enable Device Admin for Lattice to double-tap lock screen")
+            try {
+                val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                    putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, compName)
+                    putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Required to enable double-tap to lock screen.")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
-            } else {
-                make_toast("Error: API Level ${Build.VERSION.SDK_INT} too old (Need 28+)")
+                act.startActivity(intent)
+            } catch (e: Exception) {
+                Log.e("GodotAppLoader", "lock_screen: Failed to launch device admin settings", e)
             }
         }
     }
@@ -2232,16 +2195,15 @@ class AppLoader(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun expand_notifications() {
-        val service = LauncherAccessibilityService.instance
-        if (service != null) {
-            val success = service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
-            if (success) {
-                Log.d("GodotAppLoader", "expand_notifications: Notification panel opened.")
-            } else {
-                Log.e("GodotAppLoader", "expand_notifications: performGlobalAction returned false.")
-            }
-        } else {
-            Log.d("GodotAppLoader", "expand_notifications: Service instance is NULL.")
+        val act = activity ?: return
+        try {
+            val statusBarService = act.getSystemService("statusbar")
+            val statusBarManager = Class.forName("android.app.StatusBarManager")
+            val method = statusBarManager.getMethod("expandNotificationsPanel")
+            method.invoke(statusBarService)
+            Log.d("GodotAppLoader", "expand_notifications: Notification panel opened via StatusBarManager.")
+        } catch (e: Exception) {
+            Log.e("GodotAppLoader", "expand_notifications: Failed via StatusBarManager", e)
         }
     }
 
@@ -2464,37 +2426,17 @@ class AppLoader(godot: Godot) : GodotPlugin(godot) {
                 Log.i("GodotAppLoader", "System Wallpaper IMPORTED successfully to managed storage")
             } else {
                 Log.e("GodotAppLoader", "System Wallpaper Import FAILED: No bitmap found")
-                // V4.77: On Android 13+, direct access is blocked. Auto-trigger screen capture.
+                // V4.77: On Android 13+, direct access is blocked. Auto-trigger MediaProjection capture if in foreground.
                 if (Build.VERSION.SDK_INT >= 33) {
-                    if (LauncherAccessibilityService.instance != null) {
-                        Log.i("GodotAppLoader", "V4.78: Accessibility service connected — triggering accessibility capture")
-                        val activity = act
-                        activity.runOnUiThread {
-                            val params = activity.window.attributes
-                            params.alpha = 0f
-                            activity.window.attributes = params
-                        }
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            LauncherAccessibilityService.captureScreen { success ->
-                                activity.runOnUiThread {
-                                    val params = activity.window.attributes
-                                    params.alpha = 1f
-                                    activity.window.attributes = params
-                                }
-                                if (success) {
-                                    emitSignal("on_wallpaper_changed")
-                                }
-                            }
-                        }, 1000)
-                    } else if (isAppInForeground) {
-                        Log.i("GodotAppLoader", "V4.77: API 33+ detected & foreground — triggering MediaProjection capture after 1.5s delay")
+                    if (isAppInForeground) {
+                        Log.i("GodotAppLoader", "API 33+ detected & foreground — triggering MediaProjection capture after 1.5s delay")
                         Handler(Looper.getMainLooper()).postDelayed({
                             if (isAppInForeground) {
                                 capture_wallpaper()
                             }
                         }, 1500)
                     } else {
-                        Log.w("GodotAppLoader", "V4.78: App in background, ignoring background capture request")
+                        Log.w("GodotAppLoader", "App in background, ignoring background capture request")
                     }
                 }
             }
